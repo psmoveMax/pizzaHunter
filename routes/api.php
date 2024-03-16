@@ -21,6 +21,11 @@ use Illuminate\Support\Facades\Route;
 
 
 //Создание заказа
-Route::get('/orders', [OrderController::class, 'index']);
+Route::post('/orders', [OrderController::class, 'createOrder']);
+Route::post('/orders/{order_id}/items', [OrderController::class, 'addItemToOrder']);
+Route::get('/orders/{order_id}', [OrderController::class, 'getOrder']);
+
+
+
 
 

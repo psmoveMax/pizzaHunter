@@ -73,4 +73,52 @@ class OrderController extends Controller
     }
 
 
+    public function markOrderAsDone($order_id, Request $request)
+    {
+        $authKey = $request->header('X-Auth-Key');
+
+        if ($authKey !== 'qwerty123') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $order = Order::where('order_id', $order_id)->first();
+
+        if (!$order) {
+            return response()->json(['error' => 'Order not found'], 404);
+        }
+
+        if ($order->done) {
+            return response()->json(['error' => 'Order is already marked as done'], 400);
+        }
+
+        $order->done = true;
+        $order->save();
+
+        return response()->json(['message' => 'Order marked as done']);
+    }
+
+
+    public function listOrders(Request $request)
+    {
+        $authKey = $request->header('X-Auth-Key');
+
+        if ($authKey !== 'qwerty123') {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $query = Order::query();
+
+        if ($request->has('done')) {
+            $done = $request->done == 1;
+            $query->where('done', $done);
+        }
+
+        $orders = $query->get(['order_id', 'done']);
+
+        return response()->json($orders);
+    }
+
+
+
+
 }

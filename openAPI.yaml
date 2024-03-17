@@ -1,0 +1,129 @@
+openapi: 3.0.0
+info:
+  title: Pizza Ordering Service API
+  description: API for managing pizza orders
+  version: 1.0.0
+
+servers:
+  - url: http://example.com/api
+
+paths:
+  /orders:
+    post:
+      summary: Create a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: integer
+                  description: Array of item IDs
+              required:
+                - items
+      responses:
+        '200':
+          description: Order successfully created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order_id:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      type: integer
+                  done:
+                    type: boolean
+    get:
+      summary: List all orders
+      parameters:
+        - in: query
+          name: done
+          schema:
+            type: boolean
+          required: false
+          description: Filter by order completion status
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    order_id:
+                      type: string
+                    done:
+                      type: boolean
+
+  /orders/{order_id}:
+    get:
+      summary: Get order details
+      parameters:
+        - in: path
+          name: order_id
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the order
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order_id:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      type: integer
+                  done:
+                    type: boolean
+
+  /orders/{order_id}/items:
+    post:
+      summary: Add items to an order
+      parameters:
+        - in: path
+          name: order_id
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: integer
+      responses:
+        '200':
+          description: Items added successfully
+
+  /orders/{order_id}/done:
+    post:
+      summary: Mark an order as done
+      parameters:
+        - in: path
+          name: order_id
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the order
+      responses:
+        '200':
+          description: Order marked as done

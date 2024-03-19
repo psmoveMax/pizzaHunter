@@ -4,12 +4,18 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Services\OrderService;
 use App\Models\Order;
-use App\Models\OrderItem;
-use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
+    protected $orderService;
+
+    public function __construct(OrderService $orderService)
+    {
+        $this->orderService = $orderService;
+    }
+
     public function createOrder(Request $request)
     {
         $request->validate([
@@ -17,21 +23,11 @@ class OrderController extends Controller
             'items.*' => 'required|integer',
         ]);
 
-        $order = new Order();
-        $order->order_id = Str::random(10);
-        $order->done = false;
-        $order->save();
-
-        foreach ($request->items as $item_id) {
-            $orderItem = new OrderItem();
-            $orderItem->order_id = $order->id;
-            $orderItem->item_id = $item_id;
-            $orderItem->save();
-        }
+        $order = $this->orderService->createOrder($request->items);
 
         return response()->json([
             'order_id' => $order->order_id,
-            'items' => $request->items,
+            'items' => $order->items->pluck('item_id')->all(),
             'done' => $order->done,
         ]);
     }
@@ -40,26 +36,18 @@ class OrderController extends Controller
     {
         $order = Order::where('order_id', $order_id)->first();
 
-        // Проверяем, существует ли заказ и не завершен ли он
         if (!$order || $order->done) {
             return response()->json(['error' => 'Order not found or already completed'], 404);
         }
 
-
-        foreach ($request->all() as $item_id) {
-            $orderItem = new OrderItem();
-            $orderItem->order_id = $order->id;
-            $orderItem->item_id = $item_id;
-            $orderItem->save();
-        }
+        $this->orderService->addItemToOrder($order, $request->all());
 
         return response()->json(['message' => 'Items added successfully']);
     }
 
-
     public function getOrder($order_id)
     {
-        $order = Order::where('order_id', $order_id)->with('items')->first();
+        $order = $this->orderService->getOrder($order_id);
 
         if (!$order) {
             return response()->json(['error' => 'Order not found'], 404);
@@ -67,32 +55,28 @@ class OrderController extends Controller
 
         return response()->json([
             'order_id' => $order->order_id,
-            'items' => $order->items->pluck('item_id'),
+            'items' => $order->items->pluck('item_id')->all(),
             'done' => $order->done,
         ]);
     }
-
 
     public function markOrderAsDone($order_id, Request $request)
     {
         $authKey = $request->header('X-Auth-Key');
 
-        if ($authKey !== 'qwerty123') {
+        if ($authKey !== config('order.api_key')) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $order = Order::where('order_id', $order_id)->first();
+        $result = $this->orderService->markOrderAsDone($order_id);
 
-        if (!$order) {
+        if ($result === null) {
             return response()->json(['error' => 'Order not found'], 404);
         }
 
-        if ($order->done) {
+        if ($result === false) {
             return response()->json(['error' => 'Order is already marked as done'], 400);
         }
-
-        $order->done = true;
-        $order->save();
 
         return response()->json(['message' => 'Order marked as done']);
     }
@@ -101,24 +85,12 @@ class OrderController extends Controller
     public function listOrders(Request $request)
     {
         $authKey = $request->header('X-Auth-Key');
-
-        if ($authKey !== 'qwerty123') {
+        if ($authKey !== config('order.api_key')) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $query = Order::query();
-
-        if ($request->has('done')) {
-            $done = $request->done == 1;
-            $query->where('done', $done);
-        }
-
-        $orders = $query->get(['order_id', 'done']);
+        $orders = $this->orderService->listOrders($request->query('done'));
 
         return response()->json($orders);
     }
-
-
-
-
 }
